@@ -142,11 +142,7 @@ async function postHandler(req, res) {
   // if not valid send error response otherwise update database and send response with all items in collection
   else {
     try {
-      const name = clientData.name;
-      const brand = clientData.brand;
-      const price = clientData.price;
-      const imageUrl = clientData.imageUrl;
-      const description = clientData.description;
+      const { name, brand, price, imageUrl, description } = clientData;
 
       const newItem = await cosmeticsModel.create({
         name,
