@@ -12,6 +12,7 @@ const fourofour = require("./handlers/404");
 //const getRandom = require("./handlers/getRandom");
 const wildCards = require("./handlers/wildCards");
 const getProducts = require("./handlers/products");
+const Ajv = require("ajv");
 
 require("dotenv").config(); // npm i dotenv
 const mongoose = require("mongoose");
@@ -100,6 +101,8 @@ function seedCollection() {
   product4.save();
 }
 
+//  function to act as handler returning contents of cosmetics collection
+
 async function getItems(req, res) {
   cosmeticsModel.find({}, (error, items) => {
     if (error) {
@@ -110,7 +113,62 @@ async function getItems(req, res) {
   });
 }
 
-seedCollection();
+// handler for receiving new item request and data from client
+
+async function postHandler(req, res) {
+  // get data from client, if object does not match object structure send error
+
+  const ajv = new Ajv(); // create a validator for passed data
+
+  const schema = {
+    // create a schema to match data
+    type: "object",
+    properties: {
+      name: { type: "string" },
+      brand: { type: "string" },
+      price: { type: "string" },
+      imageUrl: { type: "string" },
+      description: { type: "string" },
+    },
+    required: ["name", "brand", "price", "imageUrl", "description"],
+  };
+
+  const clientData = req.body;
+
+  const validate = ajv.compile(schema); // create validator around schema
+  const valid = validate(clientData); // validate recieved client data
+  if (!valid)
+    res.status(500).send({ error: "500", errType: "incorrect object format" });
+  // if not valid send error response otherwise update database and send response with all items in collection
+  else {
+    try {
+      const name = clientData.name;
+      const brand = clientData.brand;
+      const price = clientData.price;
+      const imageUrl = clientData.imageUrl;
+      const description = clientData.description;
+
+      const newItem = await cosmeticsModel.create({
+        name,
+        brand,
+        price,
+        imageUrl,
+        description,
+      });
+      cosmeticsModel.find({}, (err, cosmetics) => {
+        if (err) {
+          res.status(500).send("error searching for cosmetics");
+        } else {
+          res.status(200).send(cosmetics);
+        }
+      });
+    } catch (error) {
+      res.status(500).send("error handling data");
+    }
+  }
+}
+
+//seedCollection();   // comment out after initial write
 
 //schema: drawing phase
 // model: creation phase
@@ -121,11 +179,13 @@ const app = express();
 const cors = require("cors");
 
 app.use(cors());
+app.use(express.json());
 app.use(logger);
 
 app.get("/productsAPI", getProducts); // removed validate middleware temporarily
 
 app.get("/product", getItems);
+app.post("/product", postHandler);
 
 //app.get("/randomimage", getRandom);
 app.get("*", fourofour, wildCards);
