@@ -164,6 +164,82 @@ async function postHandler(req, res) {
   }
 }
 
+// handler for request to update by id a database record
+
+async function idHandler(req, res) {
+  // get data from client, if object does not match object structure send error
+
+  try {
+    const clientData = req.body;
+    const { name, brand, price, imageUrl, description } = clientData;
+
+    const idStr = req.params.id;
+    //const idStrObj = mongoose.Types.ObjectId(idStr);
+    console.log(idStr);
+
+    const queryResp = await cosmeticsModel.findOneAndUpdate(
+      { _id: idStr },
+      {
+        name: name,
+        brand: brand,
+        price: price,
+        imageUrl: imageUrl,
+        description: description,
+      }
+    );
+
+    if (!queryResp) {
+      res.status(500).send("error updating record");
+    } else {
+      try {
+        const queryResp2 = await cosmeticsModel.find({});
+        if (!queryResp2) {
+          res.status(500).send("error returning items after updating");
+        } else {
+          res.status(200).send(queryResp2);
+        }
+      } catch (error) {
+        res.status(500).send("error in find operation");
+      }
+    }
+  } catch (error) {
+    res.status(500).send("error in find and update operation");
+  }
+}
+
+// handler for deleting a database entry by id from client
+
+async function deleteHandler(req, res) {
+  const clientData = req.body;
+  const idStr = req.params.id;
+  let deleteOK = false;
+  let errorStr = "";
+
+  try {
+    const retVal = await cosmeticsModel.findByIdAndDelete(idStr);
+    if (!retVal) {
+      console.log(err);
+      res.status(500).send("error deleting item");
+      errorStr = "error in delete";
+    } else {
+      console.log("Deleted record ");
+      deleteOK = true;
+      errorStr = "item was deleted ok, odd";
+
+      const findVal = await cosmeticsModel.find({});
+      if (!findVal) {
+        console.log(err);
+        res.status(500).send("error deleting item");
+      } else {
+        res.status(200).send(findVal);
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).send(errorStr);
+  }
+}
+
 //seedCollection();   // comment out after initial write
 
 //schema: drawing phase
@@ -182,6 +258,8 @@ app.get("/productsAPI", getProducts); // removed validate middleware temporarily
 
 app.get("/product", getItems);
 app.post("/product", postHandler);
+app.put("/product/:id", idHandler);
+app.delete("/product/:id", deleteHandler);
 
 //app.get("/randomimage", getRandom);
 app.get("*", fourofour, wildCards);
